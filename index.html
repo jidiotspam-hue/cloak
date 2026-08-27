@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>cloak</title>
+<meta name="description" content="Turn a link into something a browser can open and a person can't read.">
+<link rel="stylesheet" href="style.css">
+<meta name="theme-color" content="#F3EEE8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171521" media="(prefers-color-scheme: dark)">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='3' fill='%235B4B8A'/></svg>">
+</head>
+<body>
+
+<!-- data-state drives every motion cue in the page from one place. -->
+<main id="app" data-state="idle">
+
+  <header class="head">
+    <h1 class="wordmark">
+      <span class="mark" aria-hidden="true"><i></i></span>cloak
+    </h1>
+    <p class="statusline">Turn a link into something a browser can open and a person can't read.</p>
+  </header>
+
+  <p id="live" class="sr-only" role="status" aria-live="polite"></p>
+
+  <!-- ── Compose ────────────────────────────────────────────── -->
+  <section id="view-compose" class="view">
+
+    <label class="field">
+      <span class="field-label">Link to cloak</span>
+      <input type="url" id="url-input" placeholder="https://example.com/the-real-destination" autocomplete="off" spellcheck="false">
+    </label>
+
+    <label class="auto">
+      <input type="checkbox" id="pass-toggle">
+      Require a passphrase to open
+    </label>
+
+    <div id="pass-wrap" class="text-wrap" hidden>
+      <input type="password" id="pass-input" placeholder="A passphrase only your recipient knows" autocomplete="off">
+      <p class="hint">Without one, any browser that opens the link decodes it instantly. With one, whoever opens it has to enter this first.</p>
+    </div>
+
+    <div class="row row-acts">
+      <button id="cloak-btn" type="button" class="act act-strong">Cloak it</button>
+    </div>
+
+    <p class="err" id="compose-err" hidden></p>
+
+    <div id="result" class="result" hidden>
+      <input type="text" id="cloak-output" readonly spellcheck="false" aria-label="Cloaked link">
+      <div class="row">
+        <button id="copy-btn" type="button" class="act act-accent">Copy link</button>
+        <a id="open-btn" class="act" href="#" target="_blank" rel="noopener">Open in new tab</a>
+      </div>
+      <p class="hint">Anyone who opens this lands on your real link. Anyone who just looks at it sees noise.</p>
+    </div>
+  </section>
+
+  <!-- ── Opening (this page loaded as a cloaked link) ──────────── -->
+  <section id="view-opening" class="view" hidden>
+    <p class="opening-text">Opening…</p>
+  </section>
+
+  <!-- ── Passphrase prompt ──────────────────────────────────── -->
+  <section id="view-prompt" class="view" hidden>
+    <p class="offer-summary">This link is protected with a passphrase.</p>
+    <input type="password" id="prompt-input" placeholder="Passphrase" autocomplete="off">
+    <div class="row row-acts">
+      <button id="prompt-btn" type="button" class="act act-strong">Unlock</button>
+    </div>
+    <p class="err" id="prompt-err" hidden>That passphrase didn't open it. Try again.</p>
+  </section>
+
+  <!-- ── Failed ─────────────────────────────────────────────── -->
+  <section id="view-failed" class="view" hidden>
+    <p class="err" id="failed-msg">This cloaked link is broken or was tampered with.</p>
+    <button class="act act-strong" id="failed-reset" type="button">Start over</button>
+  </section>
+
+  <footer class="foot">
+    <span class="foot-meta">Runs entirely in your browser. Nothing is sent anywhere.</span>
+  </footer>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>
