@@ -273,8 +273,19 @@
     }
   }
 
+  const promptForm = document.getElementById('prompt-form');
+  if (promptForm) {
+    promptForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      tryUnlock();
+    });
+  }
+
   promptBtn.addEventListener('click', tryUnlock);
   promptInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryUnlock(); });
+  promptInput.addEventListener('change', () => {
+    if (promptInput.value.length > 0) tryUnlock();
+  });
 
   failedReset.addEventListener('click', () => {
     history.replaceState(null, '', location.pathname);

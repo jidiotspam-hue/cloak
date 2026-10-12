@@ -67,10 +67,13 @@
   <!-- ── Passphrase prompt ──────────────────────────────────── -->
   <section id="view-prompt" class="view" hidden>
     <p class="offer-summary">This link is protected with a passphrase.</p>
-    <input type="password" id="prompt-input" placeholder="Passphrase" autocomplete="off">
-    <div class="row row-acts">
-      <button id="prompt-btn" type="button" class="act act-strong">Unlock</button>
-    </div>
+    <form id="prompt-form" onsubmit="event.preventDefault();">
+      <input type="text" name="username" value="vault" autocomplete="username" style="display:none;" tabindex="-1" aria-hidden="true">
+      <input type="password" id="prompt-input" name="password" placeholder="Passphrase" autocomplete="current-password">
+      <div class="row row-acts">
+        <button id="prompt-btn" type="submit" class="act act-strong">Unlock</button>
+      </div>
+    </form>
     <p class="err" id="prompt-err" hidden>That passphrase didn't open it. Try again.</p>
   </section>
 
