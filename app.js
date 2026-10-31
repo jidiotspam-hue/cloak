@@ -16,6 +16,8 @@
 
   const MAGIC_PLAIN = 0x01;
   const MAGIC_PASS = 0x02;
+  const MAGIC_STUDYSPACE_PLAIN = 0x03;
+  const MAGIC_STUDYSPACE_PASS = 0x04;
   const PBKDF2_ITERATIONS = 250000;
 
   const b64 = {
@@ -34,6 +36,10 @@
     },
   };
 
+  function toBase64Url(str) {
+    return b64.encode(new TextEncoder().encode(str));
+  }
+
   function concatBytes(...arrs) {
     const len = arrs.reduce((n, a) => n + a.length, 0);
     const out = new Uint8Array(len);
@@ -50,7 +56,7 @@
       ));
   }
 
-  async function cloak(rawUrl, passphrase) {
+  async function cloak(rawUrl, passphrase, isStudySpace = false) {
     const data = new TextEncoder().encode(rawUrl);
     const iv = crypto.getRandomValues(new Uint8Array(12));
     let key, header, extra;
@@ -58,11 +64,11 @@
     if (passphrase) {
       const salt = crypto.getRandomValues(new Uint8Array(16));
       key = await deriveKey(passphrase, salt, 'encrypt');
-      header = new Uint8Array([MAGIC_PASS]);
+      header = new Uint8Array([isStudySpace ? MAGIC_STUDYSPACE_PASS : MAGIC_PASS]);
       extra = salt;
     } else {
       key = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-      header = new Uint8Array([MAGIC_PLAIN]);
+      header = new Uint8Array([isStudySpace ? MAGIC_STUDYSPACE_PLAIN : MAGIC_PLAIN]);
       extra = new Uint8Array(await crypto.subtle.exportKey('raw', key));
     }
 
@@ -75,23 +81,24 @@
   async function uncloak(payloadB64, passphrase) {
     const bytes = b64.decode(payloadB64);
     const magic = bytes[0];
+    const isStudySpace = (magic === MAGIC_STUDYSPACE_PLAIN || magic === MAGIC_STUDYSPACE_PASS);
 
-    if (magic === MAGIC_PLAIN) {
+    if (magic === MAGIC_PLAIN || magic === MAGIC_STUDYSPACE_PLAIN) {
       const rawKey = bytes.slice(1, 33);
       const iv = bytes.slice(33, 45);
       const cipherBytes = bytes.slice(45);
       const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']);
       const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
-      return new TextDecoder().decode(plain);
+      return { url: new TextDecoder().decode(plain), isStudySpace };
     }
 
-    if (magic === MAGIC_PASS) {
+    if (magic === MAGIC_PASS || magic === MAGIC_STUDYSPACE_PASS) {
       const salt = bytes.slice(1, 17);
       const iv = bytes.slice(17, 29);
       const cipherBytes = bytes.slice(29);
       const key = await deriveKey(passphrase, salt, 'decrypt');
       const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
-      return new TextDecoder().decode(plain);
+      return { url: new TextDecoder().decode(plain), isStudySpace };
     }
 
     throw new Error('unrecognized format');
@@ -99,7 +106,7 @@
 
   function needsPassphrase(payloadB64) {
     const bytes = b64.decode(payloadB64);
-    return bytes[0] === MAGIC_PASS;
+    return bytes[0] === MAGIC_PASS || bytes[0] === MAGIC_STUDYSPACE_PASS;
   }
 
   // ── views ──
@@ -140,6 +147,7 @@
   const passToggle = document.getElementById('pass-toggle');
   const passWrap = document.getElementById('pass-wrap');
   const passInput = document.getElementById('pass-input');
+  const studyspaceToggle = document.getElementById('studyspace-toggle');
   const cloakBtn = document.getElementById('cloak-btn');
   const composeErr = document.getElementById('compose-err');
   const result = document.getElementById('result');
@@ -178,7 +186,8 @@
 
     cloakBtn.disabled = true;
     try {
-      const link = await cloak(raw, passToggle.checked ? passInput.value : null);
+      const isSS = studyspaceToggle ? studyspaceToggle.checked : false;
+      const link = await cloak(raw, passToggle.checked ? passInput.value : null, isSS);
       cloakOutput.value = link;
       openBtn.href = link;
       result.hidden = false;
@@ -212,13 +221,18 @@
   const failedMsg = document.getElementById('failed-msg');
   const failedReset = document.getElementById('failed-reset');
 
-  function redirectTo(url) {
+  function redirectTo(url, isStudySpace = false) {
     if (!isSafeUrl(url)) {
       failedMsg.textContent = 'This link decoded to something that is not a normal web address.';
       showView('failed');
       return;
     }
-    location.replace(url);
+    if (isStudySpace) {
+      const gateway = localStorage.getItem('studyspace_gateway') || 'https://stdy.space';
+      location.replace(`${gateway}/reference/ext/${toBase64Url(url)}`);
+    } else {
+      location.replace(url);
+    }
   }
 
   function parseIncomingPayload() {
@@ -248,8 +262,8 @@
     }
 
     try {
-      const url = await uncloak(payload);
-      redirectTo(url);
+      const res = await uncloak(payload);
+      redirectTo(res.url, res.isStudySpace);
     } catch {
       failedMsg.textContent = 'This cloaked link is broken or was tampered with.';
       showView('failed');
@@ -263,8 +277,8 @@
     promptErr.hidden = true;
     promptBtn.disabled = true;
     try {
-      const url = await uncloak(pendingPayload, passphrase);
-      redirectTo(url);
+      const res = await uncloak(pendingPayload, passphrase);
+      redirectTo(res.url, res.isStudySpace);
     } catch {
       promptErr.hidden = false;
       promptInput.select();
